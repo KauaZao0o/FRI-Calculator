@@ -5,6 +5,7 @@ from tkinter import messagebox, ttk
 entries_fi = []
 entry_h = None
 entry_li_inicial = None
+tabela = None  # Variável global para a tabela
 
 def calcular_fri():
     try:
@@ -20,7 +21,8 @@ def calcular_fri():
         scrollbar_fi = ttk.Scrollbar(frame_fi, orient="vertical", command=canvas_fi.yview)
         scrollable_frame_fi = tk.Frame(canvas_fi, bg="#2d2d2d")
 
-        scrollable_frame_fi.bind("<Configure>", lambda e: canvas_fi.configure(scrollregion=canvas_fi.bbox("all")))
+        scrollable_frame_fi.bind(
+            "<Configure>", lambda e: canvas_fi.configure(scrollregion=canvas_fi.bbox("all")))
         canvas_fi.create_window((0, 0), window=scrollable_frame_fi, anchor="center")
         canvas_fi.configure(yscrollcommand=scrollbar_fi.set)
 
@@ -63,6 +65,33 @@ def calcular_fri():
     except ValueError:
         messagebox.showerror("Erro", "O valor de k deve ser um número inteiro!")
 
+def copiar_tabela():
+    if tabela is None:
+        messagebox.showwarning("Aviso", "Nenhuma tabela para copiar!")
+        return
+    
+    # Obter todos os itens da tabela
+    dados = []
+    
+    # Adicionar cabeçalhos
+    cabecalhos = [tabela.heading(col)["text"] for col in tabela["columns"]]
+    dados.append("\t".join(cabecalhos))
+    
+    # Adicionar linhas de dados
+    for child in tabela.get_children():
+        valores = [tabela.item(child)["values"][i] for i in range(len(tabela["columns"]))]
+        dados.append("\t".join(map(str, valores)))
+    
+    # Juntar tudo com quebras de linha
+    texto_copiado = "\n".join(dados)
+    
+    # Copiar para a área de transferência
+    root.clipboard_clear()
+    root.clipboard_append(texto_copiado)
+    root.update()  # Necessário para garantir que a cópia seja mantida
+    
+    messagebox.showinfo("Sucesso", "Tabela copiada para a área de transferência!\nAgora você pode colar no Excel ou em outro programa.")
+
 def exibir_resultados():
     try:
         fi = [float(entry.get()) for entry in entries_fi]
@@ -74,16 +103,30 @@ def exibir_resultados():
         for widget in frame_resultados.winfo_children():
             widget.destroy()
 
-        # Frame principal para tabela
+        # Frame principal para tabela e botão
         frame_principal = tk.Frame(frame_resultados, bg="#2d2d2d")
         frame_principal.pack(fill="both", expand=True)
 
+        # Frame para o botão de copiar (no canto superior direito)
+        frame_botoes = tk.Frame(frame_principal, bg="#2d2d2d")
+        frame_botoes.pack(fill="x", padx=10, pady=5, anchor="ne")
+
+        botao_copiar = tk.Button(
+            frame_botoes, 
+            text="Copiar Tabela", 
+            bg="#2196F3", 
+            fg="white", 
+            command=copiar_tabela
+        )
+        botao_copiar.pack(side="right")
+
         # Frame para a tabela
         frame_tabela = tk.Frame(frame_principal, bg="#2d2d2d")
-        frame_tabela.pack(fill="both", expand=True)
+        frame_tabela.pack(fill="both", expand=True, padx=10, pady=5)
 
         # Criando a tabela
         colunas = ("i", "AIC/AID", "xi", "fi", "fi.xi", "fri", "%fri", "Graus fri", "Fi", "Fri", "%Fri", "Graus Fri")
+        global tabela
         tabela = ttk.Treeview(frame_tabela, columns=colunas, show="headings", height=10)
 
         for coluna in colunas:
