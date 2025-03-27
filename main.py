@@ -21,8 +21,7 @@ def calcular_fri():
         scrollbar_fi = ttk.Scrollbar(frame_fi, orient="vertical", command=canvas_fi.yview)
         scrollable_frame_fi = tk.Frame(canvas_fi, bg="#2d2d2d")
 
-        scrollable_frame_fi.bind(
-            "<Configure>", lambda e: canvas_fi.configure(scrollregion=canvas_fi.bbox("all")))
+        scrollable_frame_fi.bind("<Configure>", lambda e: canvas_fi.configure(scrollregion=canvas_fi.bbox("all")))
         canvas_fi.create_window((0, 0), window=scrollable_frame_fi, anchor="center")
         canvas_fi.configure(yscrollcommand=scrollbar_fi.set)
 
@@ -103,7 +102,7 @@ def exibir_resultados():
         for widget in frame_resultados.winfo_children():
             widget.destroy()
 
-        # Frame principal para tabela e botão
+        # Frame principal para tabela e medidas
         frame_principal = tk.Frame(frame_resultados, bg="#2d2d2d")
         frame_principal.pack(fill="both", expand=True)
 
@@ -122,7 +121,7 @@ def exibir_resultados():
 
         # Frame para a tabela
         frame_tabela = tk.Frame(frame_principal, bg="#2d2d2d")
-        frame_tabela.pack(fill="both", expand=True, padx=10, pady=5)
+        frame_tabela.pack(fill="both", expand=True)
 
         # Criando a tabela
         colunas = ("i", "AIC/AID", "xi", "fi", "fi.xi", "fri", "%fri", "Graus fri", "Fi", "Fri", "%Fri", "Graus Fri")
@@ -146,6 +145,7 @@ def exibir_resultados():
         somatoria_fi_xi = 0
         frequencia_acumulada = 0
         frequencia_acumulada_fi = 0
+        dados = []  # Armazenar dados para cálculos posteriores
 
         for i in range(len(fi)):
             li = li_inicial + i * h
@@ -160,7 +160,7 @@ def exibir_resultados():
             percent_fri = fri * 100
             graus_fri = fri * 360
 
-            frequencia_acumulada += fri
+            frequencia_acumulada += fri  # Acumula as frequências relativas
             percent_fai = frequencia_acumulada * 100
             graus_fai = frequencia_acumulada * 360
 
@@ -181,6 +181,14 @@ def exibir_resultados():
                 f"{graus_fai:.2f}°"
             ))
 
+            # Armazenar dados para cálculos de moda e mediana
+            dados.append({
+                'li': li,
+                'fi': fi[i],
+                'Fi': frequencia_acumulada_fi,
+                'xi': xi
+            })
+
         # Linha da somatória
         tabela.insert("", "end", values=(
             "",
@@ -196,6 +204,67 @@ def exibir_resultados():
             "",
             ""
         ))
+
+        # Cálculo da Média (ME)
+        ME = somatoria_fi_xi / somatoria_fi
+
+        # Cálculo da Moda (MO)
+        # Encontrar classe modal (maior fi)
+        classe_modal = max(dados, key=lambda x: x['fi'])
+        index_modal = dados.index(classe_modal)
+        
+        # Calcular D1 e D2
+        fi_modal = classe_modal['fi']
+        f_anterior = dados[index_modal-1]['fi'] if index_modal > 0 else 0
+        f_posterior = dados[index_modal+1]['fi'] if index_modal < len(dados)-1 else 0
+        
+        D1 = fi_modal - f_anterior
+        D2 = fi_modal - f_posterior
+        
+        MO = classe_modal['li'] + (D1/(D1+D2)) * h if (D1+D2) != 0 else classe_modal['li']
+
+        # Cálculo da Mediana (MD)
+        # Encontrar classe mediana (onde Fi >= n/2)
+        n_meio = somatoria_fi / 2
+        classe_mediana = None
+        Fi_anterior = 0
+        
+        for i, dado in enumerate(dados):
+            if dado['Fi'] >= n_meio:
+                classe_mediana = dado
+                if i > 0:
+                    Fi_anterior = dados[i-1]['Fi']
+                break
+        
+        if classe_mediana:
+            MD = classe_mediana['li'] + ((n_meio - Fi_anterior) / classe_mediana['fi']) * h
+        else:
+            MD = 0
+
+        # Frame para as medidas (ME, MO, MD)
+        frame_medidas = tk.Frame(frame_principal, bg="#2d2d2d", pady=10)
+        frame_medidas.pack(fill="x")
+
+        # Configuração do estilo para os labels das medidas
+        estilo_medida = {
+            'bg': '#2d2d2d',
+            'fg': 'white',
+            'font': ('Arial', 12, 'bold'),
+            'padx': 20,
+            'pady': 10
+        }
+
+        # Média
+        label_me = tk.Label(frame_medidas, text=f"MÉDIA (ME) = {ME:.2f}", **estilo_medida)
+        label_me.pack(side="left")
+
+        # Moda
+        label_mo = tk.Label(frame_medidas, text=f"MODA (MO) = {MO:.2f}", **estilo_medida)
+        label_mo.pack(side="left")
+
+        # Mediana
+        label_md = tk.Label(frame_medidas, text=f"MEDIANA (MD) = {MD:.2f}", **estilo_medida)
+        label_md.pack(side="left")
 
     except ValueError:
         messagebox.showerror("Erro", "Todos os valores devem ser números válidos!")
